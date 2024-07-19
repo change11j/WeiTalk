@@ -32,7 +32,7 @@ class _ChatPageState extends State<ChatPage> {
 
   void _connectWebSocket() {
     final wsUrl =
-        kIsWeb ? 'ws://13.125.233.208:8080/chat' : 'ws://13.125.233.208:8080/chat';
+        kIsWeb ? 'wss://change11jwebsocket.zapto.org/chat' : 'wss://change11jwebsocket.zapto.org/chat';
     print("Connecting to WebSocket: $wsUrl");
 
     try {
