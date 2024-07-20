@@ -18,7 +18,6 @@ class MyApp extends StatelessWidget {
   }
 }
 
-
 class ChatPage extends StatefulWidget {
   @override
   _ChatPageState createState() => _ChatPageState();
@@ -27,13 +26,36 @@ class ChatPage extends StatefulWidget {
 class _ChatPageState extends State<ChatPage> {
   final TextEditingController _controller = TextEditingController();
   final List<Message> _messages = [];
+  final ScrollController _scrollController = ScrollController();
+  final FocusNode _focusNode = FocusNode();
   WebSocketChannel? channel;
   bool isConnected = false;
   bool isMatched = false;
+  bool _isAtBottom = true;
+  @override
+  void initState() {
+    super.initState();
+    _scrollController.addListener(_scrollListener);
+  }
+
+  void _scrollListener() {
+    if (_scrollController.offset >=
+            _scrollController.position.maxScrollExtent &&
+        !_scrollController.position.outOfRange) {
+      setState(() {
+        _isAtBottom = true;
+      });
+    } else {
+      setState(() {
+        _isAtBottom = false;
+      });
+    }
+  }
 
   void _connectWebSocket() {
-    final wsUrl =
-        kIsWeb ? 'wss://change11jwebsocket.zapto.org/chat' : 'wss://change11jwebsocket.zapto.org/chat';
+    final wsUrl = kIsWeb
+        ? 'wss://change11jwebsocket.zapto.org/chat'
+        : 'wss://change11jwebsocket.zapto.org/chat';
     print("Connecting to WebSocket: $wsUrl");
 
     try {
@@ -75,6 +97,7 @@ class _ChatPageState extends State<ChatPage> {
         print("Partner disconnected");
       } else {
         _messages.add(Message(message.toString(), false));
+        _scrollToBottomIfNeeded();
       }
     });
   }
@@ -87,6 +110,22 @@ class _ChatPageState extends State<ChatPage> {
         _messages.add(Message(_controller.text, true));
       });
       _controller.clear();
+      _scrollToBottomIfNeeded();
+    }
+    _focusNode.requestFocus(); // 保持焦點
+  }
+
+  void _scrollToBottomIfNeeded() {
+    if (_isAtBottom) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (_scrollController.hasClients) {
+          _scrollController.animateTo(
+            _scrollController.position.maxScrollExtent,
+            duration: Duration(milliseconds: 100),
+            curve: Curves.easeOut,
+          );
+        }
+      });
     }
   }
 
@@ -144,6 +183,7 @@ class _ChatPageState extends State<ChatPage> {
             child: isConnected
                 ? isMatched
                     ? ListView.builder(
+                        controller: _scrollController,
                         itemCount: _messages.length,
                         itemBuilder: (context, index) {
                           return MessageBubble(message: _messages[index]);
@@ -160,6 +200,7 @@ class _ChatPageState extends State<ChatPage> {
                   Expanded(
                     child: TextField(
                       controller: _controller,
+                      focusNode: _focusNode,
                       decoration: InputDecoration(
                         hintText: '輸入訊息',
                       ),
@@ -182,6 +223,9 @@ class _ChatPageState extends State<ChatPage> {
   void dispose() {
     channel?.sink.close();
     _controller.dispose();
+    _scrollController.removeListener(_scrollListener);
+    _scrollController.dispose();
+    _focusNode.dispose();
     super.dispose();
   }
 }
